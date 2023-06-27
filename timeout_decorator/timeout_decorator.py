@@ -23,6 +23,8 @@ from functools import wraps
 # Used work of Stephen "Zero" Chappell <Noctis.Skytower@gmail.com>
 # in https://code.google.com/p/verse-quiz/source/browse/trunk/timeout.py
 
+# How long to wait for childprocess to exit gracefully
+KILL_DELAY = 0.1
 
 class TimeoutError(AssertionError):
 
@@ -154,7 +156,12 @@ class _Timeout(object):
     def cancel(self):
         """Terminate any possible execution of the embedded function."""
         if self.__process.is_alive():
-            self.__process.terminate()
+            self.__process.terminate()  # try nicely
+            self.__process.join(
+                KILL_DELAY)  # give the process a chance to exit
+            if self.__process.is_alive():
+                self.__process.kill()  # be more forceful
+        self.__process.join()
 
         _raise_exception(self.__timeout_exception, self.__exception_message)
 
